@@ -3,6 +3,7 @@ package writeback
 import (
 	"log"
 	"reflect"
+	"slices"
 
 	"github.com/sarchlab/akita/v4/mem/cache"
 	"github.com/sarchlab/akita/v4/tracing"
@@ -82,7 +83,7 @@ func (f *flusher) processFlush() bool {
 		victim:            block,
 		action:            bankEvict,
 		evictingAddr:      block.Tag,
-		evictingDirtyMask: block.DirtyMask,
+		evictingDirtyMask: slices.Clone(block.DirtyMask),
 	}
 	bankBuf.Push(trans)
 

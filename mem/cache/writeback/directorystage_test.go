@@ -72,6 +72,37 @@ var _ = Describe("DirectoryStage", func() {
 		Expect(ret).To(BeFalse())
 	})
 
+	It("should preserve eviction mask ownership when the victim is reused", func() {
+		mask := make([]bool, 64)
+		mask[0], mask[7] = true, true
+		original := append([]bool(nil), mask...)
+		victim := &cache.Block{PID: 2, Tag: 0x200, DirtyMask: mask}
+		trans := &transaction{write: mem.WriteReqBuilder{}.
+			WithAddress(0x100).WithData(make([]byte, 64)).Build()}
+
+		ds.updateTransForEviction(trans, victim, 1, 0x100)
+		writeback := mem.WriteReqBuilder{}.
+			WithDirtyMask(trans.evictingDirtyMask).Build()
+		for i := range victim.DirtyMask {
+			victim.DirtyMask[i] = true
+		}
+
+		Expect(trans.victim.DirtyMask).To(Equal(original))
+		Expect(trans.evictingDirtyMask).To(Equal(original))
+		Expect(writeback.DirtyMask).To(Equal(original))
+	})
+
+	DescribeTable("should preserve the eviction mask's nil semantics", func(mask []bool) {
+		trans := &transaction{write: mem.WriteReqBuilder{}.
+			WithAddress(0x100).WithData(make([]byte, 64)).Build()}
+		ds.updateTransForEviction(trans, &cache.Block{DirtyMask: mask}, 1, 0x100)
+		Expect(trans.evictingDirtyMask).To(Equal(mask))
+		Expect(trans.victim.DirtyMask).To(Equal(mask))
+	},
+		Entry("nil means all bytes", []bool(nil)),
+		Entry("all false means no bytes", make([]bool, 64)),
+	)
+
 	Context("read", func() {
 		var (
 			read  *mem.ReadReq

@@ -86,6 +86,25 @@ var _ = Describe("Flusher", func() {
 		Expect(ret).To(BeFalse())
 	})
 
+	It("should preserve flush mask ownership after bank backpressure", func() {
+		block := &cache.Block{Tag: 0x100, DirtyMask: []bool{true, false, true, false}}
+		f.blockToEvict = []*cache.Block{block}
+		bankBuf.EXPECT().CanPush().Return(false)
+		Expect(f.processFlush()).To(BeFalse())
+		Expect(f.blockToEvict).To(HaveLen(1))
+
+		var flushed *transaction
+		bankBuf.EXPECT().CanPush().Return(true)
+		bankBuf.EXPECT().Push(gomock.Any()).Do(func(trans *transaction) {
+			flushed = trans
+		})
+		Expect(f.processFlush()).To(BeTrue())
+		block.DirtyMask[1], block.DirtyMask[3] = true, true
+
+		Expect(flushed.evictingDirtyMask).To(Equal([]bool{true, false, true, false}))
+		Expect(f.blockToEvict).To(BeEmpty())
+	})
+
 	Context("flush without reset", func() {
 		It("should start flushing", func() {
 			req := cache.FlushReqBuilder{}.Build()

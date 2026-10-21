@@ -2,6 +2,7 @@ package writeback
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/sarchlab/akita/v4/mem/cache"
 	"github.com/sarchlab/akita/v4/mem/mem"
@@ -442,16 +443,17 @@ func (ds *directoryStage) updateTransForEviction(
 	cacheLineID uint64,
 ) {
 	trans.action = bankEvictAndFetch
+	// The replacement block may reuse its mask before this eviction completes.
 	trans.victim = &cache.Block{
 		PID:          victim.PID,
 		Tag:          victim.Tag,
 		CacheAddress: victim.CacheAddress,
-		DirtyMask:    victim.DirtyMask,
+		DirtyMask:    slices.Clone(victim.DirtyMask),
 	}
 	trans.block = victim
 	trans.evictingPID = trans.victim.PID
 	trans.evictingAddr = trans.victim.Tag
-	trans.evictingDirtyMask = victim.DirtyMask
+	trans.evictingDirtyMask = trans.victim.DirtyMask
 
 	if ds.evictionNeedFetch(trans) {
 		mshrEntry := ds.cache.mshr.Add(pid, cacheLineID)

@@ -169,6 +169,7 @@ var _ = Describe("Write Buffer Stage", func() {
 		})
 
 		It("should combine with write requests", func() {
+			original := append([]byte(nil), eviction.evictingData...)
 			write := mem.WriteReqBuilder{}.
 				WithAddress(0x204).
 				WithData([]byte{10, 10, 10, 10}).
@@ -195,7 +196,8 @@ var _ = Describe("Write Buffer Stage", func() {
 			madeProgress := wbStage.processNewTransaction()
 
 			Expect(madeProgress).To(BeTrue())
-			Expect(trans.fetchedData).To(Equal(eviction.evictingData))
+			Expect(eviction.evictingData).To(Equal(original))
+			Expect(trans.fetchedData).To(Equal(trans.mshrEntry.Data))
 			Expect(trans.action).To(Equal(bankWriteFetched))
 			Expect(trans.mshrEntry.Data).To(Equal([]byte{
 				1, 2, 3, 4, 10, 10, 10, 10,
@@ -218,6 +220,52 @@ var _ = Describe("Write Buffer Stage", func() {
 				false, false, false, false, false, false, false, false,
 			}))
 		})
+
+		DescribeTable("should preserve eviction payload ownership during write merging",
+			func(inflight, blocked bool) {
+				original := append([]byte(nil), eviction.evictingData...)
+				originalMask := append([]bool(nil), eviction.evictingDirtyMask...)
+				if inflight {
+					wbStage.pendingEvictions = nil
+					wbStage.inflightEviction = []*transaction{eviction}
+					eviction.evictionWriteReq = mem.WriteReqBuilder{}.
+						WithData(eviction.evictingData).
+						WithDirtyMask(eviction.evictingDirtyMask).Build()
+				}
+				write := mem.WriteReqBuilder{}.WithAddress(0x1004).
+					WithData([]byte{10, 20, 30, 40}).
+					WithDirtyMask([]bool{true, false, true, false}).Build()
+				mshrEntry.Requests = []interface{}{&transaction{write: write}}
+
+				if blocked {
+					writeBufferBuffer.EXPECT().Peek().Return(trans)
+					bankBuffer.EXPECT().CanPush().Return(false)
+					Expect(wbStage.processNewTransaction()).To(BeFalse())
+					Expect(trans.fetchedData).To(BeNil())
+					Expect(eviction.evictingData).To(Equal(original))
+				}
+				writeBufferBuffer.EXPECT().Peek().Return(trans)
+				writeBufferBuffer.EXPECT().Pop()
+				bankBuffer.EXPECT().CanPush().Return(true)
+				bankBuffer.EXPECT().Push(trans)
+				mshr.EXPECT().Remove(mshrEntry.PID, mshrEntry.Address)
+				Expect(wbStage.processNewTransaction()).To(BeTrue())
+
+				expected := append([]byte(nil), original...)
+				expected[4], expected[6] = 10, 30
+				Expect(mshrEntry.Data).To(Equal(expected))
+				Expect(eviction.evictingData).To(Equal(original))
+				Expect(eviction.evictingDirtyMask).To(Equal(originalMask))
+				if inflight {
+					Expect(eviction.evictionWriteReq.Data).To(Equal(original))
+					Expect(eviction.evictionWriteReq.DirtyMask).To(Equal(originalMask))
+				}
+			},
+			Entry("pending", false, false),
+			Entry("inflight", true, false),
+			Entry("pending with retry", false, true),
+			Entry("inflight with retry", true, true),
+		)
 	})
 
 	Context("fetch, local miss", func() {

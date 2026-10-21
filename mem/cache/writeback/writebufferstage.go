@@ -1,6 +1,8 @@
 package writeback
 
 import (
+	"slices"
+
 	"github.com/sarchlab/akita/v4/mem/cache"
 	"github.com/sarchlab/akita/v4/mem/mem"
 	"github.com/sarchlab/akita/v4/tracing"
@@ -90,6 +92,8 @@ func (wb *writeBufferStage) sendFetchedDataToBank(
 		return false
 	}
 
+	// MSHR writes must not modify a pending or already-issued eviction payload.
+	trans.fetchedData = slices.Clone(trans.fetchedData)
 	trans.mshrEntry.Data = trans.fetchedData
 	trans.action = bankWriteFetched
 	wb.combineData(trans.mshrEntry)
