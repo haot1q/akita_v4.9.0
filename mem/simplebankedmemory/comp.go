@@ -154,6 +154,7 @@ func (m *middleware) finalizeRead(
 
 		item.readData = data
 		item.committed = true
+		m.observeStorageAccess(HookPosReadSampled, req, addr, data)
 	}
 
 	if !m.topPort.CanSend() {
@@ -211,6 +212,7 @@ func (m *middleware) finalizeWrite(
 		}
 
 		item.committed = true
+		m.observeStorageAccess(HookPosWriteCommitted, req, addr, req.Data)
 	}
 
 	if !m.topPort.CanSend() {
