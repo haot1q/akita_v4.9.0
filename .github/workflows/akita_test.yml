@@ -91,8 +91,7 @@ jobs:
   akita_unit_test:
     name: Akita Unit Test
     needs: akita_compile
-    runs-on:
-      group: Github-Large-Runners
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -116,8 +115,7 @@ jobs:
 
   noc_acceptance_test:
     name: NoC Acceptance Test
-    runs-on:
-      group: Github-Large-Runners
+    runs-on: ubuntu-24.04
     needs: akita_unit_test
     steps:
       - name: Checkout
@@ -139,8 +137,7 @@ jobs:
 
   mem_acceptance_test:
     name: Mem Acceptance Test
-    runs-on:
-      group: Github-Large-Runners
+    runs-on: ubuntu-24.04
     needs: akita_unit_test
     steps:
       - name: Checkout
