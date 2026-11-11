@@ -115,7 +115,7 @@ jobs:
 
   noc_acceptance_test:
     name: NoC Acceptance Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: akita_unit_test
     steps:
       - name: Checkout
@@ -137,7 +137,7 @@ jobs:
 
   mem_acceptance_test:
     name: Mem Acceptance Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: akita_unit_test
     steps:
       - name: Checkout
