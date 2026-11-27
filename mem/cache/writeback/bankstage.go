@@ -143,6 +143,7 @@ func (s *bankStage) Reset() {
 	s.pipeline.Clear()
 	s.postPipelineBuf.Clear()
 	s.inflightTransCount = 0
+	s.downwardInflightTransCount = 0
 }
 
 func (s *bankStage) pullFromBuf() bool {
@@ -245,7 +246,6 @@ func (s *bankStage) finalizeReadHit(trans *transaction) bool {
 	s.removeTransaction(trans)
 
 	s.inflightTransCount--
-	s.downwardInflightTransCount--
 	block.ReadCount--
 
 	dataReady := mem.DataReadyRspBuilder{}.
@@ -290,7 +290,6 @@ func (s *bankStage) finalizeWriteHit(trans *transaction) bool {
 	s.removeTransaction(trans)
 
 	s.inflightTransCount--
-	s.downwardInflightTransCount--
 
 	done := mem.WriteDoneRspBuilder{}.
 		WithSrc(s.cache.topPort.AsRemote()).
