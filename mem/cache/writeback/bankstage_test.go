@@ -69,6 +69,18 @@ var _ = Describe("Bank Stage", func() {
 		mockCtrl.Finish()
 	})
 
+	It("should clear the bank pipeline reservations on reset", func() {
+		bs.inflightTransCount = 3
+		bs.downwardInflightTransCount = 2
+		dirInBuf.EXPECT().Clear()
+		pipeline.EXPECT().Clear()
+
+		bs.Reset()
+
+		Expect(bs.inflightTransCount).To(Equal(0))
+		Expect(bs.downwardInflightTransCount).To(Equal(0))
+	})
+
 	Context("No transaction running", func() {
 		It("should do nothing if pipeline is full", func() {
 			pipeline.EXPECT().Tick()
@@ -204,6 +216,7 @@ var _ = Describe("Bank Stage", func() {
 			Expect(cacheModule.inFlightTransactions).
 				NotTo(ContainElement(trans))
 			Expect(bs.inflightTransCount).To(Equal(0))
+			Expect(bs.downwardInflightTransCount).To(Equal(0))
 			Expect(postPipelineBuf.Size()).To(Equal(0))
 		})
 	})
@@ -276,6 +289,7 @@ var _ = Describe("Bank Stage", func() {
 			Expect(cacheModule.inFlightTransactions).
 				NotTo(ContainElement(trans))
 			Expect(bs.inflightTransCount).To(Equal(0))
+			Expect(bs.downwardInflightTransCount).To(Equal(0))
 			Expect(postPipelineBuf.Size()).To(Equal(0))
 		})
 	})
